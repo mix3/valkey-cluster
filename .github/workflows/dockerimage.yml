@@ -25,6 +25,11 @@ jobs:
         with:
           username: ${{ vars.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           export IMAGE_TAG=${{ steps.meta.outputs.version }}
           envsubst < Dockerfile.tmpl > Dockerfile
@@ -32,5 +37,7 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          tags: ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+          tags: |
+            ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
           push: true
