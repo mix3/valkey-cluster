@@ -80,7 +80,7 @@ if [ "$1" = 'valkey-cluster' ]; then
     ## Check the version of valkey-cli and if we run on a valkey server below 5.0
     ## If it is below 5.0 then we use the valkey-trib.rb to build the cluster
     #
-    /valkey/src/valkey-cli --version | grep -E "valkey-cli 3.0|valkey-cli 3.2|valkey-cli 4.0"
+    valkey-cli --version | grep -E "valkey-cli 3.0|valkey-cli 3.2|valkey-cli 4.0"
 
     echo "Using valkey-cli to create the cluster"
     echo "yes" | eval valkey-cli --cluster create --cluster-replicas "$SLAVES_PER_MASTER" "$nodes"

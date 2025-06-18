@@ -1,16 +1,15 @@
 FROM valkey/valkey:${IMAGE_TAG}
 
 LABEL maintainer="mix3"
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -yqq \
-      net-tools supervisor ruby rubygems locales gettext-base wget gcc make g++ build-essential libc6-dev tcl && \
-    apt-get clean -yqq
 
-RUN mkdir /valkey-conf && mkdir /valkey-data
+RUN apt-get update && apt-get install -y \
+ gettext-base supervisor \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY valkey-cluster.tmpl /valkey-conf/valkey-cluster.tmpl
 COPY valkey.tmpl         /valkey-conf/valkey.tmpl
-COPY sentinel.tmpl      /valkey-conf/sentinel.tmpl
+COPY sentinel.tmpl       /valkey-conf/sentinel.tmpl
 COPY LICENSE /LICENSE
 
 # Add startup script
