@@ -39,21 +39,13 @@ if [ "$1" = 'valkey-cluster' ]; then
       max_port=$(($max_port + $STANDALONE))
     fi
 
+    if ! find /valkey-data/* -type d >/dev/null 2>&1; then
+      REQUIRE_CLUSTER_CREATE="true"
+    fi
+
     for port in $(seq $INITIAL_PORT $max_port); do
       mkdir -p /valkey-conf/${port}
       mkdir -p /valkey-data/${port}
-
-      if [ -e /valkey-data/${port}/nodes.conf ]; then
-        rm /valkey-data/${port}/nodes.conf
-      fi
-
-      if [ -e /valkey-data/${port}/dump.rdb ]; then
-        rm /valkey-data/${port}/dump.rdb
-      fi
-
-      if [ -e /valkey-data/${port}/appendonly.aof ]; then
-        rm /valkey-data/${port}/appendonly.aof
-      fi
 
       if [ "$port" -lt "$first_standalone" ]; then
         PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /valkey-conf/valkey-cluster.tmpl > /valkey-conf/${port}/valkey.conf
@@ -76,14 +68,10 @@ if [ "$1" = 'valkey-cluster' ]; then
     supervisord -c /etc/supervisor/supervisord.conf
     sleep 3
 
-    #
-    ## Check the version of valkey-cli and if we run on a valkey server below 5.0
-    ## If it is below 5.0 then we use the valkey-trib.rb to build the cluster
-    #
-    valkey-cli --version | grep -E "valkey-cli 3.0|valkey-cli 3.2|valkey-cli 4.0"
-
-    echo "Using valkey-cli to create the cluster"
-    echo "yes" | eval valkey-cli --cluster create --cluster-replicas "$SLAVES_PER_MASTER" "$nodes"
+    if [ "$REQUIRE_CLUSTER_CREATE" = "true" ]; then
+      echo "Using valkey-cli to create the cluster"
+      echo "yes" | eval valkey-cli --cluster create --cluster-replicas "$SLAVES_PER_MASTER" "$nodes"
+    fi
 
     if [ "$SENTINEL" = "true" ]; then
       for port in $(seq $INITIAL_PORT $(($INITIAL_PORT + $MASTERS))); do
