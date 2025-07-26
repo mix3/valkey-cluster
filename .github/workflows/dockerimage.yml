@@ -1,9 +1,16 @@
 name: Docker Image CI
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Build environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+        default: 'dev'
 
 env:
   REGISTRY_IMAGE: ${{ vars.DOCKERHUB_USER }}/valkey-cluster
@@ -11,16 +18,57 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version:
+          - 8.1.1
+          - 8.0.3
+          - 8.0.1
+          - 7.2.9
+          - 7.2.6
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set tag suffix
+        id: tag-suffix
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
+            echo "suffix=-test" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+          fi
       - uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         id: meta
         with:
           images: ${{ env.REGISTRY_IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
+            type=raw,value=${{ matrix.version }}${{ steps.tag-suffix.outputs.suffix }}
       - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
       - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      - name: Build test image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          platforms: linux/amd64
+          build-args: |
+            VALKEY_VERSION=${{ matrix.version }}
+          tags: test-valkey:${{ matrix.version }}
+          push: false
+          load: true
+      - name: Start test container with health check
+        run: |
+          echo "Starting test container for valkey-cluster:${{ matrix.version }} with health check"
+          docker run -d --name test-valkey-${{ matrix.version }} \
+            -p 7000-7005:7000-7005 \
+            --health-cmd="sh -c 'valkey-cli -c -p 7000 ping && valkey-cli -c -p 7000 cluster info | grep cluster_state:ok'" \
+            --health-interval=3s \
+            --health-timeout=60s \
+            --health-retries=30 \
+            test-valkey:${{ matrix.version }}
+      - name: Wait for health check to pass
+        run: |
+          echo "Waiting for health check to pass..."
+          timeout 60s bash -c 'until [ "$(docker inspect --format="{{.State.Health.Status}}" test-valkey-${{ matrix.version }})" = "healthy" ]; do sleep 2; done'
+          echo "Health check passed!"
       - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           username: ${{ vars.DOCKERHUB_USER }}
@@ -30,14 +78,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: |
-          export IMAGE_TAG=${{ steps.meta.outputs.version }}
-          envsubst < Dockerfile.tmpl > Dockerfile
       - uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            VALKEY_VERSION=${{ matrix.version }}
           tags: |
-            ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
-            ghcr.io/${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+            ${{ env.REGISTRY_IMAGE }}:${{ matrix.version }}${{ steps.tag-suffix.outputs.suffix }}
+            ghcr.io/{{ env.REGISTRY_IMAGE }}:${{ matrix.version }}${{ steps.tag-suffix.outputs.suffix }}
           push: true
