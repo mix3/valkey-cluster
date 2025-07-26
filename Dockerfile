@@ -1,4 +1,6 @@
-FROM valkey/valkey:${IMAGE_TAG}
+ARG VALKEY_VERSION
+
+FROM valkey/valkey:${VALKEY_VERSION:-latest}
 
 LABEL maintainer="mix3"
 
@@ -16,9 +18,9 @@ COPY LICENSE /LICENSE
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 # Add script that generates supervisor conf file based on environment variables
-COPY generate-supervisor-conf.sh /generate-supervisor-conf.sh
+COPY generate-supervisor-conf.sh valkey-cluster-create.sh prefix-output.sh /
 
-RUN chmod 755 /docker-entrypoint.sh
+RUN chmod 755 /docker-entrypoint.sh /valkey-cluster-create.sh /prefix-output.sh
 
 EXPOSE 7000 7001 7002 7003 7004 7005 7006 7007 5000 5001 5002
 

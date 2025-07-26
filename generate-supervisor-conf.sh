@@ -1,16 +1,43 @@
 initial_port="$1"
 max_port="$2"
+require_cluster_create="$3"
+slaves_per_master="$4"
+nodes="$5"
+sentinel="$6"
+masters="$7"
 
-program_entry_template ()
+program_valkey_template ()
 {
   local count=$1
   local port=$2
   echo "
 
 [program:valkey-$count]
-command=/usr/local/bin/valkey-server /valkey-conf/$port/valkey.conf
-stdout_logfile=/var/log/supervisor/%(program_name)s.log
-stderr_logfile=/var/log/supervisor/%(program_name)s.log
+command=/prefix-output.sh /usr/local/bin/valkey-server /valkey-conf/$port/valkey.conf
+stdout_logfile=/dev/stdout
+stderr_logfile=/dev/stderr
+stdout_maxbytes=0
+stderr_maxbytes=0
+stdout_logfile_maxbytes = 0
+stderr_logfile_maxbytes = 0
+autorestart=true
+"
+}
+
+program_sentinel_template ()
+{
+  local count=$1
+  local port=$2
+  echo "
+
+[program:valkey-sentinel-$count]
+command=/prefix-output.sh /usr/local/bin/valkey-sentinel /valkey-conf/sentinel-$port.conf
+stdout_logfile=/dev/stdout
+stderr_logfile=/dev/stderr
+stdout_maxbytes=0
+stderr_maxbytes=0
+stdout_logfile_maxbytes = 0
+stderr_logfile_maxbytes = 0
 autorestart=true
 "
 }
@@ -25,7 +52,7 @@ logfile_maxbytes=50MB                           ; maximum size of logfile before
 logfile_backups=10                              ; number of backed up logfiles
 loglevel=error                                  ; info, debug, warn, trace
 pidfile=/var/run/supervisord.pid                ; pidfile location
-nodaemon=false                                  ; run supervisord as a daemon
+nodaemon=true                                   ; run supervisord as a nodaemon
 minfds=1024                                     ; number of startup file descriptors
 minprocs=200                                    ; number of process descriptors
 user=root                                       ; default user
@@ -40,8 +67,32 @@ serverurl=unix:///tmp/supervisor.sock         ; use a unix:// URL  for a unix so
 
 count=1
 for port in `seq $initial_port $max_port`; do
-  result_str="$result_str$(program_entry_template $count $port)"
+  result_str="$result_str$(program_valkey_template $count $port)"
   count=$((count + 1))
 done
+
+if [ "$require_cluster_create" = "true" ]; then
+  result_str="$result_str
+
+[program:valkey-cluster-create]
+command=/prefix-output.sh /valkey-cluster-create.sh '$slaves_per_master' '$nodes'
+stdout_logfile=/dev/stdout
+stderr_logfile=/dev/stderr
+stdout_maxbytes=0
+stderr_maxbytes=0
+stdout_logfile_maxbytes = 0
+stderr_logfile_maxbytes = 0
+autostart=true
+autorestart=false
+"
+fi
+
+if [ "$sentinel" = "true" ]; then
+  count=1
+  for port in $(seq $initial_port $(($initial_port + $masters - 1))); do
+    result_str="$result_str$(program_sentinel_template $count $port)"
+    count=$((count + 1))
+  done
+fi
 
 echo "$result_str"

@@ -14,6 +14,10 @@ if [ "$1" = 'valkey-cluster' ]; then
     IP=${IP%% *} # use the first ip
     echo " -- IP After trim: '$IP'"
 
+    if [ -z "$CLUSTER_ANNOUNCE_IP" ]; then
+      CLUSTER_ANNOUNCE_IP=$(hostname -I | awk '{print $1}')
+    fi
+
     if [ -z "$INITIAL_PORT" ]; then # Default to port 7000
       INITIAL_PORT=7000
     fi
@@ -48,7 +52,7 @@ if [ "$1" = 'valkey-cluster' ]; then
       mkdir -p /valkey-data/${port}
 
       if [ "$port" -lt "$first_standalone" ]; then
-        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /valkey-conf/valkey-cluster.tmpl > /valkey-conf/${port}/valkey.conf
+        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} CLUSTER_ANNOUNCE_IP=${CLUSTER_ANNOUNCE_IP} envsubst < /valkey-conf/valkey-cluster.tmpl > /valkey-conf/${port}/valkey.conf
         nodes="$nodes $IP:$port"
       else
         PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /valkey-conf/valkey.tmpl > /valkey-conf/${port}/valkey.conf
@@ -63,23 +67,9 @@ if [ "$1" = 'valkey-cluster' ]; then
 
     done
 
-    bash /generate-supervisor-conf.sh $INITIAL_PORT $max_port > /etc/supervisor/supervisord.conf
+    bash /generate-supervisor-conf.sh "$INITIAL_PORT" "$max_port" "$REQUIRE_CLUSTER_CREATE" "$SLAVES_PER_MASTER" "$nodes" "$SENTINEL" "$MASTERS" > /etc/supervisor/supervisord.conf
 
-    supervisord -c /etc/supervisor/supervisord.conf
-    sleep 3
-
-    if [ "$REQUIRE_CLUSTER_CREATE" = "true" ]; then
-      echo "Using valkey-cli to create the cluster"
-      echo "yes" | eval valkey-cli --cluster create --cluster-replicas "$SLAVES_PER_MASTER" "$nodes"
-    fi
-
-    if [ "$SENTINEL" = "true" ]; then
-      for port in $(seq $INITIAL_PORT $(($INITIAL_PORT + $MASTERS))); do
-        valkey-sentinel /valkey-conf/sentinel-${port}.conf &
-      done
-    fi
-
-    tail -f /var/log/supervisor/valkey*.log
+    exec supervisord -c /etc/supervisor/supervisord.conf
 else
   exec "$@"
 fi
