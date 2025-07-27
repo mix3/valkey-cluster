@@ -63,16 +63,6 @@ supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
 
 [supervisorctl]
 serverurl=unix:///tmp/supervisor.sock         ; use a unix:// URL  for a unix socket
-"
-
-count=1
-for port in `seq $initial_port $max_port`; do
-  result_str="$result_str$(program_valkey_template $count $port)"
-  count=$((count + 1))
-done
-
-if [ "$require_cluster_create" = "true" ]; then
-  result_str="$result_str
 
 [program:valkey-cluster-create]
 command=/prefix-output.sh /valkey-cluster-create.sh '$slaves_per_master' '$nodes'
@@ -85,7 +75,12 @@ stderr_logfile_maxbytes = 0
 autostart=true
 autorestart=false
 "
-fi
+
+count=1
+for port in `seq $initial_port $max_port`; do
+  result_str="$result_str$(program_valkey_template $count $port)"
+  count=$((count + 1))
+done
 
 if [ "$sentinel" = "true" ]; then
   count=1
