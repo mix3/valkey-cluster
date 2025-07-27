@@ -14,10 +14,6 @@ if [ "$1" = 'valkey-cluster' ]; then
     IP=${IP%% *} # use the first ip
     echo " -- IP After trim: '$IP'"
 
-    if [ -z "$CLUSTER_ANNOUNCE_IP" ]; then
-      CLUSTER_ANNOUNCE_IP=$(hostname -I | awk '{print $1}')
-    fi
-
     if [ -z "$INITIAL_PORT" ]; then # Default to port 7000
       INITIAL_PORT=7000
     fi
@@ -52,7 +48,7 @@ if [ "$1" = 'valkey-cluster' ]; then
       mkdir -p /valkey-data/${port}
 
       if [ "$port" -lt "$first_standalone" ]; then
-        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} CLUSTER_ANNOUNCE_IP=${CLUSTER_ANNOUNCE_IP} envsubst < /valkey-conf/valkey-cluster.tmpl > /valkey-conf/${port}/valkey.conf
+        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /valkey-conf/valkey-cluster.tmpl > /valkey-conf/${port}/valkey.conf
         nodes="$nodes $IP:$port"
       else
         PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /valkey-conf/valkey.tmpl > /valkey-conf/${port}/valkey.conf
