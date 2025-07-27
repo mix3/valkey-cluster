@@ -32,15 +32,7 @@ jobs:
           if [ -n "${{ github.event.inputs.versions }}" ]; then
             versions=$(echo "${{ github.event.inputs.versions }}" | jq -R -s -c 'split(",") | map(gsub("^\\s+|\\s+$"; "") | select(length>0))')
           else
-            versions=$(cat << EOF | yq -o json '.versions' | jq -c .
-versions:
-  - 8.1.1
-  - 8.0.3
-  - 8.0.1
-  - 7.2.9
-  - 7.2.6
-EOF
-)
+            versions=$(yq -o json '.versions' .github/actions/versions.yml | jq -c '.')
           fi
           echo "matrix={\"version\":$versions}" >> "$GITHUB_OUTPUT"
 
