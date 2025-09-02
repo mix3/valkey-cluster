@@ -61,6 +61,9 @@ if [ "$1" = 'valkey-cluster' ]; then
         fi
       fi
 
+      if [ -f /valkey-data/${port}/nodes.conf ]; then
+        sed -i'' "s/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}:/$IP:/g" /valkey-data/${port}/nodes.conf
+      fi
     done
 
     bash /generate-supervisor-conf.sh "$INITIAL_PORT" "$max_port" "$REQUIRE_CLUSTER_CREATE" "$SLAVES_PER_MASTER" "$nodes" "$SENTINEL" "$MASTERS" > /etc/supervisor/supervisord.conf
