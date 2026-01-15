@@ -1,0 +1,77 @@
+name: Monitor Valkey Versions
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  check-and-process:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Subscribe to Valkey feed
+        id: feed
+        uses: takaram/subscribe-feed-action@e76b7cf6fd4d5ef004a5e04b9eb9313c315165c2 # main
+        with:
+          feed-url: 'https://rss.p.theconnman.com/valkey/valkey.atom?includeRegex=%5Cd%2B%5C.%5Cd%2B%5C.%5Cd%2B%24'
+
+      - name: Commit changes
+        if: steps.feed.outputs.has-new-items == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add rss-state.json
+          git commit -m "Update Valkey feed data"
+          git push
+
+      - name: Trigger workflow
+        if: steps.feed.outputs.has-new-items == 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          NEW_ITEMS_JSON: ${{ steps.feed.outputs.new-items }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const newItems = JSON.parse(process.env.NEW_ITEMS_JSON);
+
+            // titleから `:` の後ろのsemverを抽出
+            const versions = newItems
+              .map(item => {
+                const match = item.title.match(/:(.+)$/);
+                return match ? match[1] : null;
+              })
+              .filter(version => version !== null)
+              .sort((a, b) => {
+                // semverを比較してソート
+                const aParts = a.split('.').map(Number);
+                const bParts = b.split('.').map(Number);
+
+                for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                  const aNum = aParts[i] || 0;
+                  const bNum = bParts[i] || 0;
+                  if (aNum !== bNum) {
+                    return aNum - bNum;
+                  }
+                }
+                return 0;
+              })
+              .join(',');
+
+            console.log(`Extracted versions: ${versions}`);
+
+            // ワークフローを起動
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'dockerimage.yml',
+              ref: context.ref,
+              inputs: {
+                environment: 'prod',
+                versions: versions
+              }
+            });
