@@ -43,15 +43,27 @@ if [ "$1" = 'valkey-cluster' ]; then
       REQUIRE_CLUSTER_CREATE="true"
     fi
 
+    MODULE_DIR="/usr/lib/valkey"
+    MODULE_ARGS=""
+    if [ -d "$MODULE_DIR" ]; then
+      for module in "$MODULE_DIR"/*.so; do
+        MODULE_ARGS=$(cat << EOF
+${MODULE_ARGS}
+loadmodule $module
+EOF
+)
+      done
+    fi
+
     for port in $(seq $INITIAL_PORT $max_port); do
       mkdir -p /valkey-conf/${port}
       mkdir -p /valkey-data/${port}
 
       if [ "$port" -lt "$first_standalone" ]; then
-        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /valkey-conf/valkey-cluster.tmpl > /valkey-conf/${port}/valkey.conf
+        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} MODULE_ARGS="${MODULE_ARGS}" envsubst < /valkey-conf/valkey-cluster.tmpl > /valkey-conf/${port}/valkey.conf
         nodes="$nodes $IP:$port"
       else
-        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /valkey-conf/valkey.tmpl > /valkey-conf/${port}/valkey.conf
+        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} MODULE_ARGS="${MODULE_ARGS}" envsubst < /valkey-conf/valkey.tmpl > /valkey-conf/${port}/valkey.conf
       fi
 
       if [ "$port" -lt $(($INITIAL_PORT + $MASTERS)) ]; then
