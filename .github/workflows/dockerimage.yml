@@ -16,6 +16,14 @@ on:
         required: false
         type: string
         default: ''
+      variant:
+        description: 'Image variant suffix (e.g. -bundle, empty for standard)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - '-bundle'
+        default: ''
 
 env:
   REGISTRY_IMAGE: ${{ vars.DOCKERHUB_USER }}/valkey-cluster
@@ -57,7 +65,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY_IMAGE }}
           tags: |
-            type=raw,value=${{ matrix.version }}${{ steps.tag-suffix.outputs.suffix }}
+            type=raw,value=${{ matrix.version }}${{ github.event.inputs.variant }}${{ steps.tag-suffix.outputs.suffix }}
       - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
       - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
       - name: Build test image
@@ -67,23 +75,24 @@ jobs:
           platforms: linux/amd64
           build-args: |
             VALKEY_VERSION=${{ matrix.version }}
-          tags: test-valkey:${{ matrix.version }}
+            VALKEY_VARIANT=${{ github.event.inputs.variant }}
+          tags: test-valkey:${{ matrix.version }}${{ github.event.inputs.variant }}
           push: false
           load: true
       - name: Start test container with health check
         run: |
-          echo "Starting test container for valkey-cluster:${{ matrix.version }} with health check"
-          docker run -d --name test-valkey-${{ matrix.version }} \
+          echo "Starting test container for valkey-cluster:${{ matrix.version }}${{ github.event.inputs.variant }} with health check"
+          docker run -d --name test-valkey-${{ matrix.version }}${{ github.event.inputs.variant }} \
             -p 7000-7005:7000-7005 \
             --health-cmd="sh -c 'valkey-cli -c -p 7000 ping && valkey-cli -c -p 7000 cluster info | grep cluster_state:ok'" \
             --health-interval=3s \
             --health-timeout=60s \
             --health-retries=30 \
-            test-valkey:${{ matrix.version }}
+            test-valkey:${{ matrix.version }}${{ github.event.inputs.variant }}
       - name: Wait for health check to pass
         run: |
           echo "Waiting for health check to pass..."
-          timeout 60s bash -c 'until [ "$(docker inspect --format="{{.State.Health.Status}}" test-valkey-${{ matrix.version }})" = "healthy" ]; do sleep 2; done'
+          timeout 60s bash -c 'until [ "$(docker inspect --format="{{.State.Health.Status}}" test-valkey-${{ matrix.version }}${{ github.event.inputs.variant }})" = "healthy" ]; do sleep 2; done'
           echo "Health check passed!"
       - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
@@ -100,7 +109,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             VALKEY_VERSION=${{ matrix.version }}
+            VALKEY_VARIANT=${{ github.event.inputs.variant }}
           tags: |
-            ${{ env.REGISTRY_IMAGE }}:${{ matrix.version }}${{ steps.tag-suffix.outputs.suffix }}
-            ghcr.io/${{ env.REGISTRY_IMAGE }}:${{ matrix.version }}${{ steps.tag-suffix.outputs.suffix }}
+            ${{ env.REGISTRY_IMAGE }}:${{ matrix.version }}${{ github.event.inputs.variant }}${{ steps.tag-suffix.outputs.suffix }}
+            ghcr.io/${{ env.REGISTRY_IMAGE }}:${{ matrix.version }}${{ github.event.inputs.variant }}${{ steps.tag-suffix.outputs.suffix }}
           push: true
