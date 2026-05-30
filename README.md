@@ -2,7 +2,7 @@
 
 Docker image for LOCAL development with a valkey cluster based on the published valkey docker image.
 
-Forked from [pvogel1967/valkey-redis-cluster](https://github.com/pvogel1967/valkey-redis-cluster) with enhancements including multi-architecture support, optimized image size, graceful shutdown, and more.
+Forked from [pvogel1967/valkey-redis-cluster](https://github.com/pvogel1967/valkey-redis-cluster) and modified to add support for optimized image size, graceful shutdown, and more.
 
 ***Note:*** This is _not_ intended for production use; it runs 6 nodes of a valkey cluster in a single container intended as a convenience for local development and testing of code that uses a real valkey cluster (i.e. AWS Elasticache/Valkey, etc.).  
 
