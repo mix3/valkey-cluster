@@ -1,6 +1,7 @@
 ARG VALKEY_VERSION
+ARG VALKEY_VARIANT
 
-FROM valkey/valkey:${VALKEY_VERSION:-latest}
+FROM valkey/valkey${VALKEY_VARIANT}:${VALKEY_VERSION:-latest}
 
 LABEL maintainer="mix3"
 
