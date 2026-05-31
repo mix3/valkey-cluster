@@ -8,6 +8,8 @@ Forked from [pvogel1967/valkey-redis-cluster](https://github.com/pvogel1967/valk
 
 Why not just run a single node for local development?  Because you'll miss bugs in your code (i.e. sending a pipeline of commands that reference keys that reside in different nodes) that only show up when you have a cluster.  
 
+For a current list of available Docker image tags see: https://hub.docker.com/r/mix3/valkey-cluster/tags
+
 ## Discussions, help, guides
 
 Github have recently released their `Discussions` feature into beta for more repositories across the github space. This feature is enabled on this repo since a while back.
