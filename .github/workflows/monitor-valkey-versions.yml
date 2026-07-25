@@ -10,15 +10,20 @@ jobs:
     permissions:
       actions: write
       contents: write
+    services:
+      docker-hub-rss:
+        image: theconnman/docker-hub-rss:latest
+        ports:
+          - 3000:3000
     strategy:
       matrix:
         include:
           - variant: ''
             state-file-path: rss-state.json
-            feed-url: 'https://rss.p.theconnman.com/valkey/valkey.atom?includeRegex=%5Cd%2B%5C.%5Cd%2B%5C.%5Cd%2B%24'
+            feed-url: 'http://localhost:3000/valkey/valkey.atom?includeRegex=%5Cd%2B%5C.%5Cd%2B%5C.%5Cd%2B%24'
           - variant: '-bundle'
             state-file-path: rss-state-bundle.json
-            feed-url: 'https://rss.p.theconnman.com/valkey/valkey-bundle.atom?includeRegex=%5Cd%2B%5C.%5Cd%2B%5C.%5Cd%2B%24'
+            feed-url: 'http://localhost3000/valkey/valkey-bundle.atom?includeRegex=%5Cd%2B%5C.%5Cd%2B%5C.%5Cd%2B%24'
     concurrency:
       group: git-push
       cancel-in-progress: false
