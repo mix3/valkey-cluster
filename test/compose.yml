@@ -1,0 +1,94 @@
+services:
+  default:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        - VALKEY_VERSION=${VALKEY_VERSION:-latest}
+        - VALKEY_VARIANT=${VALKEY_VARIANT:-}
+    image: valkey-cluster-test
+    healthcheck:
+      test: |
+        CMD-SHELL
+        valkey-cli -p 7000 ping && \
+        valkey-cli -p 7001 ping && \
+        valkey-cli -p 7002 ping && \
+        valkey-cli -p 7003 ping && \
+        valkey-cli -p 7004 ping && \
+        valkey-cli -p 7005 ping && \
+        valkey-cli -c -p 7000 cluster info | grep cluster_state:ok
+      interval: 3s
+      timeout: 60s
+      retries: 30
+
+  sentinel:
+    image: valkey-cluster-test
+    command: ["--sentinel"]
+    healthcheck:
+      test: |
+        CMD-SHELL
+        valkey-cli -p 7000 ping && \
+        valkey-cli -p 7001 ping && \
+        valkey-cli -p 7002 ping && \
+        valkey-cli -p 7003 ping && \
+        valkey-cli -p 7004 ping && \
+        valkey-cli -p 7005 ping && \
+        valkey-cli -p 5000 ping && \
+        valkey-cli -p 5001 ping && \
+        valkey-cli -p 5002 ping && \
+        valkey-cli -p 5000 sentinel masters | grep -A 1 flags | grep -v flags | grep -E "^master$" && \
+        valkey-cli -p 5001 sentinel masters | grep -A 1 flags | grep -v flags | grep -E "^master$" && \
+        valkey-cli -p 5002 sentinel masters | grep -A 1 flags | grep -v flags | grep -E "^master$"
+      interval: 3s
+      timeout: 60s
+      retries: 30
+
+  standalone:
+    image: valkey-cluster-test
+    command: ["-m", "0", "--standalone"]
+    healthcheck:
+      test: |
+        CMD-SHELL
+        redis-cli -p 7000 ping && \
+        redis-cli -p 7001 ping
+      interval: 3s
+      timeout: 60s
+      retries: 30
+
+  password:
+    image: valkey-cluster-test
+    environment:
+      PASSWORD: secret123
+    healthcheck:
+      test: |
+        CMD-SHELL
+        valkey-cli -p 7000 -a secret123 ping && \
+        valkey-cli -p 7001 -a secret123 ping && \
+        valkey-cli -p 7002 -a secret123 ping && \
+        valkey-cli -p 7003 -a secret123 ping && \
+        valkey-cli -p 7004 -a secret123 ping && \
+        valkey-cli -p 7005 -a secret123 ping && \
+        valkey-cli -c -p 7000 -a secret123 cluster info | grep cluster_state:ok
+      interval: 3s
+      timeout: 60s
+      retries: 30
+
+  tls:
+    image: valkey-cluster-test
+    volumes:
+      - ./tls_entrypoint.sh:/entrypoint.sh
+    entrypoint: /entrypoint.sh
+    command: ["--tls-port", "7000", "--tls-cert-file", "/tls/node.crt", "--tls-key-file", "/tls/node.key", "--tls-ca-cert-file", "/tls/ca.crt"]
+    healthcheck:
+      test: |
+        CMD-SHELL
+        valkey-cli -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt ping && \
+        valkey-cli -p 7001 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt ping && \
+        valkey-cli -p 7002 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt ping && \
+        valkey-cli -p 7003 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt ping && \
+        valkey-cli -p 7004 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt ping && \
+        valkey-cli -p 7005 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt ping && \
+        valkey-cli -c -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt cluster info | grep cluster_state:ok
+      interval: 3s
+      timeout: 60s
+      retries: 30

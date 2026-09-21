@@ -1,29 +1,25 @@
 ARG VALKEY_VERSION
 ARG VALKEY_VARIANT
 
+FROM golang:1.27.1 AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
+
+COPY go.mod go.sum main.go ./
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /launcher main.go
+
 FROM valkey/valkey${VALKEY_VARIANT}:${VALKEY_VERSION:-latest}
 
 LABEL maintainer="mix3"
 
-RUN apt-get update && apt-get install -y \
- gettext-base supervisor \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /launcher /launcher
 
-COPY valkey-cluster.tmpl /valkey-conf/valkey-cluster.tmpl
-COPY valkey.tmpl         /valkey-conf/valkey.tmpl
-COPY sentinel.tmpl       /valkey-conf/sentinel.tmpl
 COPY LICENSE /LICENSE
 
-# Add startup script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-
-# Add script that generates supervisor conf file based on environment variables
-COPY generate-supervisor-conf.sh valkey-cluster-create.sh prefix-output.sh /
-
-RUN chmod 755 /docker-entrypoint.sh /valkey-cluster-create.sh /prefix-output.sh
+RUN mkdir -p /valkey-data
 
 EXPOSE 7000 7001 7002 7003 7004 7005 7006 7007 5000 5001 5002
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["valkey-cluster"]
+ENTRYPOINT ["/launcher"]
