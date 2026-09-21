@@ -1,0 +1,12 @@
+services:
+  valkey-cluster:
+    image: mix3/valkey-cluster
+    ports:
+        - 14000-14005:14000-14005/tcp
+    environment:
+        IP: ${VALKEY_CLUSTER_IP:-}
+        SENTINEL: ${VALKEY_USE_SENTINEL:-0}
+        STANDALONE: ${VALKEY_USE_STANDALONE:-0}
+        INITIAL_PORT: 14000
+        MASTERS: 3
+        SLAVES_PER_MASTER: 1
