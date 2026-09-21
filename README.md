@@ -64,7 +64,7 @@ export VALKEY_CLUSTER_IP=0.0.0.0
 If you are downloading the container from dockerhub, you must add the internal IP environment variable to your `docker run` command.
 
 ```
-docker run -e "IP=0.0.0.0" -p 7000-7005:7000-7005 pvogel/valkey-cluster:latest
+docker run -e "IP=0.0.0.0" -p 7000-7005:7000-7005 mix3/valkey-cluster:latest
 ```
 
 
@@ -126,7 +126,7 @@ Note that Docker also needs to be [configured](https://docs.docker.com/config/da
 Unfortunately Docker does not handle IPv6 NAT so, when acceptable, `--network host` can be used.
 
     # Example using plain docker
-    docker run -e "IP=::1" -e "BIND_ADDRESS=::" --network host grokzen/valkey-cluster:latest
+    docker run -e "IP=::1" -e "BIND_ADDRESS=::" --network host mix3/valkey-cluster:latest
 
 
 ## Build alternative valkey versions
@@ -134,7 +134,7 @@ Unfortunately Docker does not handle IPv6 NAT so, when acceptable, `--network ho
 
 ### docker build
 
-My github actions use docker buildx to build a linux/arm64 and linux/amd64 image for the current valkey version. That image is pushed to `docker hub` as pvogel/valkey-cluster:<valkey-version>-<git tag> and pvogel/valkey-cluster:latest.
+My github actions use docker buildx to build a linux/arm64 and linux/amd64 image for the current valkey version. That image is pushed to `docker hub` as mix3/valkey-cluster:&lt;valkey-version> and mix3/valkey-cluster:latest.
 
 
 # License
