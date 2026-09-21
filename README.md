@@ -111,6 +111,17 @@ Also note that the number of sentinels (if enabled) is the same as the number of
         MASTERS: 2,
         SLAVES_PER_MASTER: 2
 
+## Change number of cluster databases
+
+Valkey 9.0 and newer can expose multiple logical databases in cluster mode.
+Set `CLUSTER_DATABASES` to a positive integer to configure them. If unset, the
+Valkey server default is preserved.
+
+    services:
+      valkey-cluster:
+        ...
+      environment:
+        CLUSTER_DATABASES: 4
 
 ## IPv6 support
 
