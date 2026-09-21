@@ -24,23 +24,24 @@ import (
 
 // 1. CLI Parameter Definitions (github.com/alecthomas/kong)
 type CLI struct {
-	IP              string `env:"IP" default:"" help:"IP address for inter-node communication and cluster creation (auto-detected if empty, defaults to 0.0.0.0 on macOS)"`
-	InitialPort     int    `short:"p" env:"INITIAL_PORT" default:"7000" help:"Starting port number for standard instances"`
-	Masters         int    `short:"m" env:"MASTERS" default:"3" help:"Number of master nodes"`
-	SlavesPerMaster int    `short:"s" env:"SLAVES_PER_MASTER" default:"1" help:"Number of slave nodes per master"`
-	Standalone      bool   `short:"n" env:"STANDALONE" default:"false" help:"Enable creating standalone nodes"`
-	StandaloneCount int    `env:"STANDALONE_COUNT" default:"2" help:"Number of standalone nodes"`
-	Sentinel        bool   `short:"S" env:"SENTINEL" help:"Enable Sentinel mode"`
-	SentinelPort    *int   `help:"Starting port number for Sentinel (defaults to master port - 2000 if not specified)"`
-	Password        string `short:"a" env:"PASSWORD" help:"Authentication password"`
-	Bind            string `env:"BIND_ADDRESS" default:"0.0.0.0" help:"IP address to bind"`
-	DataDir         string `env:"DATA_DIR" default:"/valkey-data" help:"Root path for data directories"`
-	ModuleDir       string `env:"MODULE_DIR" default:"/usr/lib/valkey" help:"Directory path to automatically search for .so modules"`
-	TLSPort         int    `env:"TLS_PORT" default:"0" help:"Starting TLS port number (enables TLS mode if specified)"`
-	TLSCertFile     string `env:"TLS_CERT_FILE" help:"Path to TLS certificate file (.crt)"`
-	TLSKeyFile      string `env:"TLS_KEY_FILE" help:"Path to TLS private key file (.key)"`
-	TLSCACertFile   string `name:"tls-ca-cert-file" env:"TLS_CA_CERT_FILE" help:"Path to TLS CA certificate file (.crt)"`
-	TLSAuhtClients  string `env:"TLS_AUTH_CLIENTS" default:"no" enum:"yes,no" help:""`
+	IP               string `env:"IP" default:"" help:"IP address for inter-node communication and cluster creation (auto-detected if empty, defaults to 0.0.0.0 on macOS)"`
+	InitialPort      int    `short:"p" env:"INITIAL_PORT" default:"7000" help:"Starting port number for standard instances"`
+	Masters          int    `short:"m" env:"MASTERS" default:"3" help:"Number of master nodes"`
+	SlavesPerMaster  int    `short:"s" env:"SLAVES_PER_MASTER" default:"1" help:"Number of slave nodes per master"`
+	Standalone       bool   `short:"n" env:"STANDALONE" default:"false" help:"Enable creating standalone nodes"`
+	StandaloneCount  int    `env:"STANDALONE_COUNT" default:"2" help:"Number of standalone nodes"`
+	Sentinel         bool   `short:"S" env:"SENTINEL" help:"Enable Sentinel mode"`
+	SentinelPort     *int   `help:"Starting port number for Sentinel (defaults to master port - 2000 if not specified)"`
+	Password         string `short:"a" env:"PASSWORD" help:"Authentication password"`
+	Bind             string `env:"BIND_ADDRESS" default:"0.0.0.0" help:"IP address to bind"`
+	DataDir          string `env:"DATA_DIR" default:"/valkey-data" help:"Root path for data directories"`
+	ModuleDir        string `env:"MODULE_DIR" default:"/usr/lib/valkey" help:"Directory path to automatically search for .so modules"`
+	TLSPort          int    `env:"TLS_PORT" default:"0" help:"Starting TLS port number (enables TLS mode if specified)"`
+	TLSCertFile      string `env:"TLS_CERT_FILE" help:"Path to TLS certificate file (.crt)"`
+	TLSKeyFile       string `env:"TLS_KEY_FILE" help:"Path to TLS private key file (.key)"`
+	TLSCACertFile    string `name:"tls-ca-cert-file" env:"TLS_CA_CERT_FILE" help:"Path to TLS CA certificate file (.crt)"`
+	TLSAuthClients   string `env:"TLS_AUTH_CLIENTS" default:"no" enum:"yes,no" help:"Require clients to authenticate with a valid certificate (mTLS)"`
+	ClusterDatabases int    `env:"CLUSTER_DATABASES" default:"1" help:"Number of databases to allow in cluster mode (Valkey 9.0+)"`
 }
 
 type NodeRole string
@@ -187,7 +188,7 @@ func runInternal(ctx context.Context, cli *CLI) error {
 			if isTLS {
 				args = append(args, "--port", "0", "--tls-port", strconv.Itoa(node.Port))
 				args = append(args, "--tls-cert-file", absCert, "--tls-key-file", absKey, "--tls-ca-cert-file", absCACert)
-				args = append(args, "--tls-auth-clients", cli.TLSAuhtClients)
+				args = append(args, "--tls-auth-clients", cli.TLSAuthClients)
 				if isCluster {
 					args = append(args,
 						"--cluster-port", strconv.Itoa(node.Port+10000),
@@ -209,6 +210,9 @@ func runInternal(ctx context.Context, cli *CLI) error {
 					"--cluster-announce-port", strconv.Itoa(node.Port),
 					"--cluster-announce-bus-port", strconv.Itoa(node.Port+10000),
 				)
+				if cli.ClusterDatabases > 1 {
+					args = append(args, "--cluster-databases", strconv.Itoa(cli.ClusterDatabases))
+				}
 			} else {
 				args = append(args, "--cluster-enabled", "no")
 			}
