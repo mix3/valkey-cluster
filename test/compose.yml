@@ -1,3 +1,11 @@
+volumes:
+  default-data:
+  sentinel-data:
+  standalone-data:
+  password-data:
+  tls-data:
+  tls:
+
 services:
   default:
     build:
@@ -7,6 +15,8 @@ services:
         - VALKEY_VERSION=${VALKEY_VERSION:-latest}
         - VALKEY_VARIANT=${VALKEY_VARIANT:-}
     image: valkey-cluster-test
+    volumes:
+      - default-data:/valkey-data
     healthcheck:
       test: |
         CMD-SHELL
@@ -23,6 +33,8 @@ services:
 
   sentinel:
     image: valkey-cluster-test
+    volumes:
+      - sentinel-data:/valkey-data
     command: ["--sentinel"]
     healthcheck:
       test: |
@@ -45,18 +57,22 @@ services:
 
   standalone:
     image: valkey-cluster-test
+    volumes:
+      - standalone-data:/valkey-data
     command: ["-m", "0", "--standalone"]
     healthcheck:
       test: |
         CMD-SHELL
-        redis-cli -p 7000 ping && \
-        redis-cli -p 7001 ping
+        valkey-cli -p 7000 ping && \
+        valkey-cli -p 7001 ping
       interval: 3s
       timeout: 60s
       retries: 30
 
   password:
     image: valkey-cluster-test
+    volumes:
+      - password-data:/valkey-data
     environment:
       PASSWORD: secret123
     healthcheck:
@@ -76,7 +92,9 @@ services:
   tls:
     image: valkey-cluster-test
     volumes:
+      - tls-data:/valkey-data
       - ./tls_entrypoint.sh:/entrypoint.sh
+      - tls:/tls
     entrypoint: /entrypoint.sh
     command: ["--tls-port", "7000", "--tls-cert-file", "/tls/node.crt", "--tls-key-file", "/tls/node.key", "--tls-ca-cert-file", "/tls/ca.crt"]
     healthcheck:
@@ -92,3 +110,129 @@ services:
       interval: 3s
       timeout: 60s
       retries: 30
+
+  default-test-runner-1:
+    image: valkey-cluster-test
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h default -p 7000 SET hoge 1)" == "OK" ]]
+        [[ "$(valkey-cli -c -h default -p 7000 SET fuga 2)" == "OK" ]]
+        [[ "$(valkey-cli -c -h default -p 7000 SET piyo 3)" == "OK" ]]
+        [[ "$(valkey-cli -c -h default -p 7000 GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h default -p 7000 GET fuga)" == "2" ]]
+        [[ "$(valkey-cli -c -h default -p 7000 GET piyo)" == "3" ]]
+      "
+
+  default-test-runner-2:
+    image: valkey-cluster-test
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h default -p 7000 GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h default -p 7000 GET fuga)" == "2" ]]
+        [[ "$(valkey-cli -c -h default -p 7000 GET piyo)" == "3" ]]
+      "
+
+  sentinel-test-runner-1:
+    image: valkey-cluster-test
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h sentinel -p 7000 SET hoge 1)" == "OK" ]]
+        [[ "$(valkey-cli -c -h sentinel -p 7001 SET fuga 2)" == "OK" ]]
+        [[ "$(valkey-cli -c -h sentinel -p 7002 SET piyo 3)" == "OK" ]]
+        [[ "$(valkey-cli -c -h sentinel -p 7000 GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h sentinel -p 7001 GET fuga)" == "2" ]]
+        [[ "$(valkey-cli -c -h sentinel -p 7002 GET piyo)" == "3" ]]
+      "
+
+  sentinel-test-runner-2:
+    image: valkey-cluster-test
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h sentinel -p 7000 GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h sentinel -p 7001 GET fuga)" == "2" ]]
+        [[ "$(valkey-cli -c -h sentinel -p 7002 GET piyo)" == "3" ]]
+      "
+
+  standalone-test-runner-1:
+    image: valkey-cluster-test
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h standalone -p 7000 SET hoge 1)" == "OK" ]]
+        [[ "$(valkey-cli -c -h standalone -p 7001 SET fuga 2)" == "OK" ]]
+        [[ "$(valkey-cli -c -h standalone -p 7000 GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h standalone -p 7001 GET fuga)" == "2" ]]
+      "
+
+  standalone-test-runner-2:
+    image: valkey-cluster-test
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h standalone -p 7000 GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h standalone -p 7001 GET fuga)" == "2" ]]
+      "
+
+  password-test-runner-1:
+    image: valkey-cluster-test
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 SET hoge 1)" == "OK" ]]
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 SET fuga 2)" == "OK" ]]
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 SET piyo 3)" == "OK" ]]
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 GET fuga)" == "2" ]]
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 GET piyo)" == "3" ]]
+      "
+
+  password-test-runner-2:
+    image: valkey-cluster-test
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 GET fuga)" == "2" ]]
+        [[ "$(valkey-cli -c -h password -p 7000 -a secret123 GET piyo)" == "3" ]]
+      "
+
+  tls-test-runner-1:
+    image: valkey-cluster-test
+    volumes:
+      - tls:/tls
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt SET hoge 1)" == "OK" ]]
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt SET fuga 2)" == "OK" ]]
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt SET piyo 3)" == "OK" ]]
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt GET fuga)" == "2" ]]
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt GET piyo)" == "3" ]]
+      "
+
+  tls-test-runner-2:
+    image: valkey-cluster-test
+    volumes:
+      - tls:/tls
+    entrypoint: ""
+    command: |
+      bash -c "
+        set -e
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt GET hoge)" == "1" ]]
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt GET fuga)" == "2" ]]
+        [[ "$(valkey-cli -c -h tls -p 7000 --tls --cert /tls/node.crt --key /tls/node.key --cacert /tls/ca.crt GET piyo)" == "3" ]]
+      "
